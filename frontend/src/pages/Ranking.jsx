@@ -1,14 +1,28 @@
-import React from 'react';
-import { mockRankings } from '../data/mockData';
-
-const getRankBadge = (rank) => {
-  if (rank === 1) return '🥇';
-  if (rank === 2) return '🥈';
-  if (rank === 3) return '🥉';
-  return `#${rank}`;
-};
+// src/pages/Ranking.jsx
+import React, { useState, useEffect } from 'react';
+import { getExpRanking } from '../services/api';
 
 const Ranking = () => {
+  const [rankings, setRankings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await getExpRanking();
+        setRankings(res.data || []);
+      } catch (err) {
+        console.error('Lỗi lấy ranking EXP:', err);
+        setRankings([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) return <div className="p-6 text-gray-400">Đang tải...</div>;
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
       <h1 className="text-3xl font-bold text-gold mb-6 flex items-center gap-3">
@@ -28,10 +42,12 @@ const Ranking = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {mockRankings.map((player) => (
-              <tr key={player.rank} className="hover:bg-gray-800/30 transition duration-200">
-                <td className="p-4 text-2xl font-bold text-gold">{getRankBadge(player.rank)}</td>
-                <td className="p-4 font-semibold text-white">{player.name}</td>
+            {rankings.map((player, index) => (
+              <tr key={player.id} className="hover:bg-gray-800/30 transition duration-200">
+                <td className="p-4 text-2xl font-bold text-gold">
+                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                </td>
+                <td className="p-4 font-semibold text-white">{player.username}</td>
                 <td className="p-4">{player.level}</td>
                 <td className="p-4 text-gold font-mono">{player.xp.toLocaleString()}</td>
                 <td className="p-4 text-green-400">{player.wins}</td>

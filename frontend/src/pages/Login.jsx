@@ -1,7 +1,7 @@
 // src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login, register } from '../service/api';
+import { login, register } from '../services/api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,9 +15,7 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      const res = isLogin
-        ? await login(form.username, form.password)
-        : await register(form.username, form.password);
+      const res = isLogin ? await login(form.username, form.password) : await register(form.username, form.password);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');

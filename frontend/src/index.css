@@ -13,6 +13,7 @@
     @apply bg-gold rounded-full;
   }
 }
+
 @keyframes slideIn {
   from {
     transform: translateX(100%);

@@ -17,13 +17,6 @@ const PrivateRoute = ({ children }) => {
   return children;
 };
 
-const ProtectedLayout = ({ children }) => (
-  <>
-    <Header />
-    <main className="min-h-screen pb-10">{children}</main>
-  </>
-);
-
 function App() {
   return (
     <ToastProvider>
@@ -34,9 +27,10 @@ function App() {
             path="/"
             element={
               <PrivateRoute>
-                <ProtectedLayout>
-                  <Dashboard />
-                </ProtectedLayout>
+                <>
+                  <Header />
+                  <main className="min-h-screen pb-10"><Dashboard /></main>
+                </>
               </PrivateRoute>
             }
           />
@@ -44,9 +38,10 @@ function App() {
             path="/history"
             element={
               <PrivateRoute>
-                <ProtectedLayout>
-                  <History />
-                </ProtectedLayout>
+                <>
+                  <Header />
+                  <main className="min-h-screen pb-10"><History /></main>
+                </>
               </PrivateRoute>
             }
           />
@@ -54,9 +49,10 @@ function App() {
             path="/ranking"
             element={
               <PrivateRoute>
-                <ProtectedLayout>
-                  <Ranking />
-                </ProtectedLayout>
+                <>
+                  <Header />
+                  <main className="min-h-screen pb-10"><Ranking /></main>
+                </>
               </PrivateRoute>
             }
           />
@@ -64,9 +60,10 @@ function App() {
             path="/tierlist"
             element={
               <PrivateRoute>
-                <ProtectedLayout>
-                  <TierList />
-                </ProtectedLayout>
+                <>
+                  <Header />
+                  <main className="min-h-screen pb-10"><TierList /></main>
+                </>
               </PrivateRoute>
             }
           />
@@ -74,9 +71,10 @@ function App() {
             path="/honor"
             element={
               <PrivateRoute>
-                <ProtectedLayout>
-                  <HonorRanking />
-                </ProtectedLayout>
+                <>
+                  <Header />
+                  <main className="min-h-screen pb-10"><HonorRanking /></main>
+                </>
               </PrivateRoute>
             }
           />
@@ -84,9 +82,10 @@ function App() {
             path="/admin"
             element={
               <PrivateRoute>
-                <ProtectedLayout>
-                  <AdminPanel />
-                </ProtectedLayout>
+                <>
+                  <Header />
+                  <main className="min-h-screen pb-10"><AdminPanel /></main>
+                </>
               </PrivateRoute>
             }
           />
