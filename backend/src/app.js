@@ -19,6 +19,8 @@ const heroRoutes = require('./routes/heroRoutes');
 const rankingRoutes = require('./routes/rankingRoutes');
 const questRoutes = require('./routes/questRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const exportRoutes = require('./routes/exportRoutes');
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -27,6 +29,7 @@ app.use('/api/heroes', heroRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/quests', questRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/export', exportRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Unmatched API is running' });
