@@ -12,26 +12,26 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const matchRoutes = require('./routes/matchRoutes');
 const heroRoutes = require('./routes/heroRoutes');
 const rankingRoutes = require('./routes/rankingRoutes');
+const questRoutes = require('./routes/questRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
-// Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/heroes', heroRoutes);
 app.use('/api/ranking', rankingRoutes);
+app.use('/api/quests', questRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Unmatched API is running' });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });

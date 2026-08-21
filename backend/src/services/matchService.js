@@ -1,10 +1,9 @@
-// src/services/matchService.js
 const db = require('../config/database');
 const User = require('../models/User');
 const Hero = require('../models/Hero');
 const { calculateLevelAndOvercap } = require('./userService');
+const { checkQuests } = require('./questService');
 
-// Tính XP trận đấu
 function calculateMatchXP({ winnerHero, isAdminChallenge, isHandicap, isWin }) {
   return new Promise((resolve, reject) => {
     if (!isWin) return resolve(10);
@@ -26,46 +25,37 @@ function calculateMatchXP({ winnerHero, isAdminChallenge, isHandicap, isWin }) {
   });
 }
 
-// Xử lý trận đấu (cập nhật XP, level, honor, thợ săn)
 async function processMatch({
   player1Id, player2Id, winnerId,
   player1Hero, player2Hero,
   isAdminChallenge = false,
   isHandicap = false,
-  isBountyChallenge = false  // Thợ săn tiền thưởng
+  isBountyChallenge = false
 }) {
   const isWin = (winnerId === player1Id);
   const winnerHero = isWin ? player1Hero : player2Hero;
   const loserId = isWin ? player2Id : player1Id;
   const loserHero = isWin ? player2Hero : player1Hero;
 
-  // Tính XP
   const xp = await calculateMatchXP({ winnerHero, isAdminChallenge, isHandicap, isWin });
 
-  // Lấy user thắng và thua để cập nhật
   const winner = await User.findById(winnerId);
   const loser = await User.findById(loserId);
 
-  // Cập nhật XP, wins/losses cho winner
   let newXp = winner.xp + xp;
   let newHonor = winner.honor_points;
 
-  // Xử lý ELO: nếu là thợ săn và thắng top 4 => +100 ELO
   if (isBountyChallenge && isWin) {
     newHonor += 100;
-    // Top 4 thua bị trừ 100 ELO (giả định loser là top 4)
     if (loser && loser.honor_points >= 100) {
       await User.update(loserId, { honor_points: loser.honor_points - 100 });
     }
   } else if (isWin) {
-    // Thắng thường: +10 ELO (giữ nguyên logic cũ)
     newHonor += 10;
   }
 
-  // Tính level và overcap
   const levelInfo = calculateLevelAndOvercap(newXp);
 
-  // Cập nhật winner
   await User.update(winnerId, {
     xp: newXp,
     honor_points: newHonor,
@@ -75,16 +65,13 @@ async function processMatch({
     wins: winner.wins + 1
   });
 
-  // Cập nhật loser (thua)
   await User.update(loserId, {
     losses: loser.losses + 1
   });
 
-  // Cập nhật thống kê tướng
   await Hero.incrementStats(winnerHero, true);
   await Hero.incrementStats(loserHero, false);
 
-  // Lưu trận đấu
   const stmt = db.prepare(`
     INSERT INTO matches 
     (player1_id, player2_id, winner_id, player1_hero, player2_hero, xp_awarded, is_admin_challenge, handicap_applied, is_bounty_challenge)
@@ -93,11 +80,19 @@ async function processMatch({
   stmt.run(player1Id, player2Id, winnerId, player1Hero, player2Hero, xp, isAdminChallenge ? 1 : 0, isHandicap ? 1 : 0, isBountyChallenge ? 1 : 0);
   stmt.finalize();
 
+  // Kiểm tra nhiệm vụ
+  const winnerHeroData = await Hero.findByName(winnerHero);
+  const questResults = await checkQuests(winnerId, {
+    isWin: true,
+    winnerHeroTier: winnerHeroData?.tier
+  });
+
   return {
     xpAwarded: xp,
     honorChange: isWin ? (isBountyChallenge ? 100 : 10) : 0,
     newLevel: levelInfo.level,
-    overcapTickets: levelInfo.overcapTickets
+    overcapTickets: levelInfo.overcapTickets,
+    questsCompleted: questResults
   };
 }
 
