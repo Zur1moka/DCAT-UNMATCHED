@@ -1,9 +1,11 @@
 // backend/src/app.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
-require('dotenv').config();
+const http = require('http');
+const { Server } = require('socket.io');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -17,8 +19,7 @@ app.use(express.json());
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
-const matchRoutes = require('./routes/matches');  // Nếu file là matchRoutes.js
-// const matchRoutes = require('./routes/matches');  // Nếu file là matches.js
+const matchRoutes = require('./routes/matches');
 const heroRoutes = require('./routes/heroRoutes');
 const rankingRoutes = require('./routes/rankingRoutes');
 const questRoutes = require('./routes/questRoutes');
@@ -45,6 +46,26 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.listen(port, () => {
+// ===== SOCKET.IO =====
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
+});
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+  console.log('✅ Client connected:', socket.id);
+  socket.on('disconnect', () => {
+    console.log('❌ Client disconnected:', socket.id);
+  });
+});
+
+// Khởi động server với socket
+server.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
+  console.log(`🔌 WebSocket ready`);
 });

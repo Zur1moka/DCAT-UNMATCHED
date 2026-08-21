@@ -5,6 +5,17 @@ const db = require('../config/database');
 exports.createMatch = async (req, res) => {
   try {
     const result = await processMatch(req.body);
+    
+    // Emit sự kiện realtime
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('newMatch', {
+        match: result,
+        timestamp: new Date().toISOString()
+      });
+      console.log('📡 Emitted newMatch event');
+    }
+    
     res.status(201).json({
       message: 'Trận đấu đã được lưu',
       data: result
@@ -15,6 +26,7 @@ exports.createMatch = async (req, res) => {
   }
 };
 
+// GET /api/matches/history/:userId
 exports.getMatchHistory = (req, res) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId)) {
@@ -42,6 +54,7 @@ exports.getMatchHistory = (req, res) => {
   );
 };
 
+// GET /api/matches - Lấy tất cả trận
 exports.getAllMatches = (req, res) => {
   db.all(
     `
