@@ -29,25 +29,24 @@ db.serialize(() => {
 
   // Matches table
   db.run(`
-    CREATE TABLE IF NOT EXISTS matches (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      player1_id INTEGER,
-      player2_id INTEGER,
-      winner_id INTEGER,
-      player1_hero TEXT,
-      player2_hero TEXT,
-      xp_awarded INTEGER,
-      honor_change INTEGER,
-      is_admin_challenge BOOLEAN DEFAULT 0,
-      handicap_applied BOOLEAN DEFAULT 0,
-      is_bounty_challenge BOOLEAN DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (player1_id) REFERENCES users(id),
-      FOREIGN KEY (player2_id) REFERENCES users(id),
-      FOREIGN KEY (winner_id) REFERENCES users(id)
-    )
-  `);
-
+  CREATE TABLE IF NOT EXISTS matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player1_id INTEGER,
+    player2_id INTEGER,
+    winner_id INTEGER,
+    player1_hero TEXT,
+    player2_hero TEXT,
+    xp_awarded INTEGER,
+    honor_change INTEGER,
+    is_admin_challenge BOOLEAN DEFAULT 0,
+    handicap_applied BOOLEAN DEFAULT 0,
+    is_bounty_challenge BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player1_id) REFERENCES users(id),
+    FOREIGN KEY (player2_id) REFERENCES users(id),
+    FOREIGN KEY (winner_id) REFERENCES users(id)
+  )
+`);
   // Heroes table
   db.run(`
     CREATE TABLE IF NOT EXISTS heroes (
