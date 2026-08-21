@@ -1,4 +1,4 @@
-// frontend/src/services/api.js
+// src/services/api.js
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -10,7 +10,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor: tự động gắn token vào header nếu có
+// Interceptor: tự động gắn token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -20,6 +20,19 @@ api.interceptors.request.use(
     return config;
   },
   (error) => Promise.reject(error)
+);
+
+// Interceptor: xử lý lỗi 401 -> chuyển về login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
 );
 
 // ===== AUTH =====
@@ -40,5 +53,10 @@ export const getHeroes = () => api.get('/heroes');
 // ===== RANKING =====
 export const getExpRanking = () => api.get('/ranking/exp');
 export const getHonorRanking = () => api.get('/ranking/honor');
+
+// ===== QUESTS =====
+export const checkIn = () => api.post('/quests/checkin');
+export const getUserQuests = () => api.get('/quests');
+export const adminCheckIn = (userId) => api.post(`/admin/checkin/${userId}`);
 
 export default api;
