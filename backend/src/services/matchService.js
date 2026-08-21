@@ -1,68 +1,104 @@
 // src/services/matchService.js
 const db = require('../config/database');
+const User = require('../models/User');
+const Hero = require('../models/Hero');
+const { calculateLevelAndOvercap } = require('./userService');
 
-// Công thức tính match_xp
-function calculateMatchXP({ winnerId, winnerHero, isAdminChallenge, isHandicap, isWin }) {
+// Tính XP trận đấu
+function calculateMatchXP({ winnerHero, isAdminChallenge, isHandicap, isWin }) {
   return new Promise((resolve, reject) => {
-    if (!isWin) {
-      return resolve(10); // thua cố định +10XP
-    }
+    if (!isWin) return resolve(10);
 
-    // Lấy tier và bonus của tướng thắng
-    db.get(`SELECT tier, bonus_multiplier FROM heroes WHERE name = ?`, [winnerHero], (err, hero) => {
-      if (err) return reject(err);
-      if (!hero) return resolve(50); // fallback
+    Hero.findByName(winnerHero)
+      .then(hero => {
+        if (!hero) return resolve(50);
+        let baseXP = 50;
+        if (hero.tier === 'S' || hero.tier === 'A') baseXP = 35;
+        else if (hero.tier === 'B') baseXP = 50;
+        else if (hero.tier === 'C' || hero.tier === 'D') baseXP = 70;
 
-      let baseXP = 50; // hệ số chuẩn
-      const bonus = hero.bonus_multiplier / 100;
-      if (hero.tier === 'S' || hero.tier === 'A') baseXP = 35;
-      else if (hero.tier === 'B') baseXP = 50;
-      else if (hero.tier === 'C' || hero.tier === 'D') baseXP = 70;
-
-      let totalXP = baseXP;
-
-      // Admin bonus
-      if (isAdminChallenge) totalXP += 20;
-
-      // Handicap bonus (Top 4 dùng C/D)
-      if (isHandicap) totalXP += 30;
-
-      resolve(totalXP);
-    });
+        let total = baseXP;
+        if (isAdminChallenge) total += 20;
+        if (isHandicap) total += 30;
+        resolve(total);
+      })
+      .catch(reject);
   });
 }
 
-// Hàm cập nhật điểm sau trận
-async function processMatch({ player1Id, player2Id, winnerId, player1Hero, player2Hero, isAdminChallenge, isHandicap }) {
+// Xử lý trận đấu (cập nhật XP, level, honor, thợ săn)
+async function processMatch({
+  player1Id, player2Id, winnerId,
+  player1Hero, player2Hero,
+  isAdminChallenge = false,
+  isHandicap = false,
+  isBountyChallenge = false  // Thợ săn tiền thưởng
+}) {
   const isWin = (winnerId === player1Id);
   const winnerHero = isWin ? player1Hero : player2Hero;
+  const loserId = isWin ? player2Id : player1Id;
+  const loserHero = isWin ? player2Hero : player1Hero;
 
-  const xp = await calculateMatchXP({ winnerId, winnerHero, isAdminChallenge, isHandicap, isWin });
+  // Tính XP
+  const xp = await calculateMatchXP({ winnerHero, isAdminChallenge, isHandicap, isWin });
 
-  // Lưu match vào DB
-  const stmt = db.prepare(`
-    INSERT INTO matches (player1_id, player2_id, winner_id, player1_hero, player2_hero, xp_awarded, is_admin_challenge, handicap_applied)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  stmt.run(player1Id, player2Id, winnerId, player1Hero, player2Hero, xp, isAdminChallenge ? 1 : 0, isHandicap ? 1 : 0);
-  stmt.finalize();
+  // Lấy user thắng và thua để cập nhật
+  const winner = await User.findById(winnerId);
+  const loser = await User.findById(loserId);
 
-  // Cập nhật XP, level, honor points cho người thắng (đơn giản hóa)
-  // Ở đây bạn sẽ thêm logic tính level, overcap, honor...
-  // Tạm thời chỉ cộng XP và honor (giả định +10 honor cho mỗi trận thắng)
-  if (isWin) {
-    db.run(`UPDATE users SET xp = xp + ?, wins = wins + 1 WHERE id = ?`, [xp, winnerId]);
-    db.run(`UPDATE users SET honor_points = honor_points + 10 WHERE id = ?`, [winnerId]);
-    // Cập nhật thống kê tướng
-    db.run(`UPDATE heroes SET usage_count = usage_count + 1, wins = wins + 1 WHERE name = ?`, [winnerHero]);
-  } else {
-    const loserId = winnerId === player1Id ? player2Id : player1Id;
-    db.run(`UPDATE users SET losses = losses + 1 WHERE id = ?`, [loserId]);
-    const loserHero = isWin ? player2Hero : player1Hero;
-    db.run(`UPDATE heroes SET usage_count = usage_count + 1, losses = losses + 1 WHERE name = ?`, [loserHero]);
+  // Cập nhật XP, wins/losses cho winner
+  let newXp = winner.xp + xp;
+  let newHonor = winner.honor_points;
+
+  // Xử lý ELO: nếu là thợ săn và thắng top 4 => +100 ELO
+  if (isBountyChallenge && isWin) {
+    newHonor += 100;
+    // Top 4 thua bị trừ 100 ELO (giả định loser là top 4)
+    if (loser && loser.honor_points >= 100) {
+      await User.update(loserId, { honor_points: loser.honor_points - 100 });
+    }
+  } else if (isWin) {
+    // Thắng thường: +10 ELO (giữ nguyên logic cũ)
+    newHonor += 10;
   }
 
-  return { xp, honorChange: isWin ? 10 : 0 };
+  // Tính level và overcap
+  const levelInfo = calculateLevelAndOvercap(newXp);
+
+  // Cập nhật winner
+  await User.update(winnerId, {
+    xp: newXp,
+    honor_points: newHonor,
+    level: levelInfo.level,
+    overcap_xp: levelInfo.overcapXp,
+    overcap_tickets: levelInfo.overcapTickets,
+    wins: winner.wins + 1
+  });
+
+  // Cập nhật loser (thua)
+  await User.update(loserId, {
+    losses: loser.losses + 1
+  });
+
+  // Cập nhật thống kê tướng
+  await Hero.incrementStats(winnerHero, true);
+  await Hero.incrementStats(loserHero, false);
+
+  // Lưu trận đấu
+  const stmt = db.prepare(`
+    INSERT INTO matches 
+    (player1_id, player2_id, winner_id, player1_hero, player2_hero, xp_awarded, is_admin_challenge, handicap_applied, is_bounty_challenge)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  stmt.run(player1Id, player2Id, winnerId, player1Hero, player2Hero, xp, isAdminChallenge ? 1 : 0, isHandicap ? 1 : 0, isBountyChallenge ? 1 : 0);
+  stmt.finalize();
+
+  return {
+    xpAwarded: xp,
+    honorChange: isWin ? (isBountyChallenge ? 100 : 10) : 0,
+    newLevel: levelInfo.level,
+    overcapTickets: levelInfo.overcapTickets
+  };
 }
 
 module.exports = { calculateMatchXP, processMatch };
