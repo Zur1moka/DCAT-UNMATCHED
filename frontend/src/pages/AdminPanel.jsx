@@ -12,6 +12,9 @@ import {
   exportUsers,
   exportMatches,
   exportRanking,
+  exportUsersExcel,
+  exportMatchesExcel,
+  exportRankingExcel,
   createHero,
   updateHero,
   deleteHero,
@@ -23,6 +26,9 @@ import {
   deleteReward,
   getPendingQuests,
   approveQuest,
+  adminUpdateUser,
+  adminResetPassword,
+  adminDeleteUser,
 } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 import AdminStats from './AdminStats';
@@ -45,7 +51,6 @@ const AdminPanel = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // ===== Form states =====
-  // Form nhập trận
   const [matchForm, setMatchForm] = useState({
     player1Id: '',
     player2Id: '',
@@ -57,7 +62,6 @@ const AdminPanel = () => {
     isBountyChallenge: false,
   });
 
-  // Form quản lý tướng
   const [heroForm, setHeroForm] = useState({
     id: null,
     name: '',
@@ -66,7 +70,6 @@ const AdminPanel = () => {
   });
   const [editingHero, setEditingHero] = useState(false);
 
-  // Form quản lý phần thưởng
   const [rewardForm, setRewardForm] = useState({
     id: null,
     name: '',
@@ -300,7 +303,43 @@ const AdminPanel = () => {
     }
   };
 
-  // ===== XUẤT BÁO CÁO =====
+  // ===== QUẢN LÝ USER (ADMIN) =====
+  const handleUpdateUser = async (userId, data) => {
+    try {
+      await adminUpdateUser(userId, data);
+      showToast('✅ Cập nhật user thành công', 'success');
+      await fetchData();
+    } catch (err) {
+      showToast('❌ ' + (err.response?.data?.error || 'Lỗi cập nhật'), 'error');
+    }
+  };
+
+  const handleResetPassword = async (userId) => {
+    const newPassword = prompt('Nhập mật khẩu mới (tối thiểu 6 ký tự):');
+    if (newPassword && newPassword.length >= 6) {
+      try {
+        await adminResetPassword(userId, newPassword);
+        showToast('✅ Đặt lại mật khẩu thành công', 'success');
+      } catch (err) {
+        showToast('❌ ' + (err.response?.data?.error || 'Lỗi reset mật khẩu'), 'error');
+      }
+    } else if (newPassword) {
+      showToast('⚠️ Mật khẩu phải có ít nhất 6 ký tự', 'warning');
+    }
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`Bạn có chắc muốn xóa user ${username}? Tất cả dữ liệu liên quan sẽ bị xóa.`)) return;
+    try {
+      await adminDeleteUser(userId);
+      showToast(`✅ Đã xóa user ${username}`, 'success');
+      await fetchData();
+    } catch (err) {
+      showToast('❌ ' + (err.response?.data?.error || 'Lỗi xóa user'), 'error');
+    }
+  };
+
+  // ===== XUẤT BÁO CÁO (CSV) =====
   const handleExport = async (type) => {
     try {
       let response;
@@ -336,6 +375,42 @@ const AdminPanel = () => {
     }
   };
 
+  // ===== XUẤT BÁO CÁO (EXCEL) =====
+  const handleExportExcel = async (type) => {
+    try {
+      let response;
+      let fileName = '';
+      switch (type) {
+        case 'users':
+          response = await exportUsersExcel();
+          fileName = `danh_sach_nguoi_choi_${new Date().toISOString().split('T')[0]}.xlsx`;
+          break;
+        case 'matches':
+          response = await exportMatchesExcel();
+          fileName = `lich_su_tran_dau_${new Date().toISOString().split('T')[0]}.xlsx`;
+          break;
+        case 'ranking':
+          response = await exportRankingExcel();
+          fileName = `bang_xep_hang_${new Date().toISOString().split('T')[0]}.xlsx`;
+          break;
+        default:
+          showToast('Loại báo cáo không hợp lệ', 'error');
+          return;
+      }
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      showToast(`✅ Đã xuất báo cáo Excel: ${fileName}`, 'success');
+    } catch (err) {
+      showToast('Lỗi xuất Excel: ' + (err.response?.data?.error || err.message), 'error');
+    }
+  };
+
   // ===== RENDER =====
   if (loading) {
     return (
@@ -365,6 +440,7 @@ const AdminPanel = () => {
           { key: 'approvals', label: '✅ Phê duyệt' },
           { key: 'quests', label: '📋 Nhiệm vụ' },
           { key: 'stats', label: '📊 Thống kê' },
+          { key: 'users', label: '👥 Người dùng' },
           { key: 'report', label: '📊 Báo cáo' },
         ].map((tab) => (
           <button
@@ -574,7 +650,6 @@ const AdminPanel = () => {
         <div className="bg-card-dark/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-4">🛡️ Quản lý tướng</h2>
 
-          {/* Form thêm/sửa tướng */}
           <form onSubmit={handleHeroSubmit} className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-800/50 rounded-xl">
             <div className="flex-1 min-w-[150px]">
               <label className="block text-sm text-gray-400">Tên tướng</label>
@@ -635,7 +710,6 @@ const AdminPanel = () => {
             </div>
           </form>
 
-          {/* Danh sách tướng */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-gray-400 border-b border-gray-700">
@@ -765,7 +839,6 @@ const AdminPanel = () => {
         <div className="bg-card-dark/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-4">🎁 Quản lý phần thưởng</h2>
 
-          {/* Form thêm/sửa phần thưởng */}
           <form onSubmit={handleRewardSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-800/50 rounded-xl">
             <div>
               <label className="block text-sm text-gray-400">Tên phần thưởng</label>
@@ -866,7 +939,6 @@ const AdminPanel = () => {
             </div>
           </form>
 
-          {/* Danh sách phần thưởng */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-gray-400 border-b border-gray-700">
@@ -1040,40 +1112,105 @@ const AdminPanel = () => {
       {/* ===== TAB THỐNG KÊ ===== */}
       {activeTab === 'stats' && <AdminStats />}
 
+      {/* ===== TAB QUẢN LÝ NGƯỜI DÙNG ===== */}
+      {activeTab === 'users' && (
+        <div className="bg-card-dark/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-white">👥 Quản lý người dùng</h2>
+            <button
+              onClick={fetchData}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-500 text-white text-sm rounded-lg transition"
+            >
+              🔄 Làm mới
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-gray-400 border-b border-gray-700">
+                <tr>
+                  <th className="text-left py-2 px-3">ID</th>
+                  <th className="text-left py-2 px-3">Username</th>
+                  <th className="text-left py-2 px-3">Email</th>
+                  <th className="text-left py-2 px-3">Role</th>
+                  <th className="text-left py-2 px-3">XP</th>
+                  <th className="text-left py-2 px-3">Honor</th>
+                  <th className="text-left py-2 px-3">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-800/30 transition">
+                    <td className="py-2 px-3">{user.id}</td>
+                    <td className="py-2 px-3 font-medium text-white">{user.username}</td>
+                    <td className="py-2 px-3">{user.email || 'N/A'}</td>
+                    <td className="py-2 px-3">
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleUpdateUser(user.id, { role: e.target.value })}
+                        className="bg-gray-700 border border-gray-600 rounded px-2 py-0.5 text-sm"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                    <td className="py-2 px-3">{user.xp}</td>
+                    <td className="py-2 px-3">{user.honor_points}</td>
+                    <td className="py-2 px-3">
+                      <button
+                        onClick={() => handleResetPassword(user.id)}
+                        className="text-blue-400 hover:text-blue-300 mr-2 text-sm"
+                      >
+                        🔑 Reset pass
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user.id, user.username)}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                      >
+                        🗑️ Xóa
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* ===== TAB BÁO CÁO ===== */}
       {activeTab === 'report' && (
         <div className="bg-card-dark/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6">
           <h2 className="text-xl font-bold text-white mb-4">📊 Xuất báo cáo</h2>
+
+          <h3 className="text-md font-medium text-gray-300 mb-3">📥 Xuất CSV</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+              <h4 className="font-medium text-white">📋 Người chơi</h4>
+              <button onClick={() => handleExport('users')} className="mt-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition">📥 CSV</button>
+            </div>
+            <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+              <h4 className="font-medium text-white">⚔️ Trận đấu</h4>
+              <button onClick={() => handleExport('matches')} className="mt-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition">📥 CSV</button>
+            </div>
+            <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+              <h4 className="font-medium text-white">🏆 Xếp hạng</h4>
+              <button onClick={() => handleExport('ranking')} className="mt-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition">📥 CSV</button>
+            </div>
+          </div>
+
+          <h3 className="text-md font-medium text-gray-300 mb-3">📊 Xuất Excel</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-              <h3 className="font-medium text-white">📋 Người chơi</h3>
-              <p className="text-sm text-gray-400 mt-1">Danh sách tất cả người chơi, điểm số, cấp độ</p>
-              <button
-                onClick={() => handleExport('users')}
-                className="mt-3 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition"
-              >
-                📥 Xuất CSV
-              </button>
+              <h4 className="font-medium text-white">📋 Người chơi</h4>
+              <button onClick={() => handleExportExcel('users')} className="mt-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition">📊 Excel</button>
             </div>
             <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-              <h3 className="font-medium text-white">⚔️ Trận đấu</h3>
-              <p className="text-sm text-gray-400 mt-1">Lịch sử tất cả trận đấu</p>
-              <button
-                onClick={() => handleExport('matches')}
-                className="mt-3 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition"
-              >
-                📥 Xuất CSV
-              </button>
+              <h4 className="font-medium text-white">⚔️ Trận đấu</h4>
+              <button onClick={() => handleExportExcel('matches')} className="mt-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition">📊 Excel</button>
             </div>
             <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-              <h3 className="font-medium text-white">🏆 Xếp hạng</h3>
-              <p className="text-sm text-gray-400 mt-1">Bảng xếp hạng EXP và Honor</p>
-              <button
-                onClick={() => handleExport('ranking')}
-                className="mt-3 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition"
-              >
-                📥 Xuất CSV
-              </button>
+              <h4 className="font-medium text-white">🏆 Xếp hạng</h4>
+              <button onClick={() => handleExportExcel('ranking')} className="mt-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm rounded-lg transition">📊 Excel</button>
             </div>
           </div>
         </div>
