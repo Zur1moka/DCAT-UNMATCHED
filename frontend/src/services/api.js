@@ -1,3 +1,4 @@
+// frontend/src/services/api.js
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -9,6 +10,7 @@ const api = axios.create({
   },
 });
 
+// Interceptor: tự động gắn token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -20,6 +22,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Interceptor: xử lý lỗi 401 -> chuyển về login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -87,9 +90,20 @@ export const getOverviewStats = () => api.get('/stats/overview');
 export const getDailyStats = (days = 7) => api.get('/stats/daily', { params: { days } });
 export const getLevelDistribution = () => api.get('/stats/levels');
 
-// ===== EXPORT =====
+// ===== EXPORT CSV =====
 export const exportUsers = () => api.get('/export/users', { responseType: 'blob' });
 export const exportMatches = () => api.get('/export/matches', { responseType: 'blob' });
 export const exportRanking = () => api.get('/export/ranking', { responseType: 'blob' });
+
+// ===== EXPORT EXCEL =====
+export const exportUsersExcel = () => api.get('/export/excel/users', { responseType: 'blob' });
+export const exportMatchesExcel = () => api.get('/export/excel/matches', { responseType: 'blob' });
+export const exportRankingExcel = () => api.get('/export/excel/ranking', { responseType: 'blob' });
+
+// ===== ADMIN USER MANAGEMENT =====
+export const adminGetAllUsers = () => api.get('/admin/users');
+export const adminUpdateUser = (id, data) => api.put(`/admin/users/${id}`, data);
+export const adminResetPassword = (id, newPassword) => api.post(`/admin/users/${id}/reset-password`, { newPassword });
+export const adminDeleteUser = (id) => api.delete(`/admin/users/${id}`);
 
 export default api;
