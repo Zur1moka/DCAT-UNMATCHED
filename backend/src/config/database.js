@@ -95,6 +95,70 @@ db.serialize(() => {
       UNIQUE(user_id, quest_id)
     )
   `);
+  db.run(`
+  CREATE TABLE IF NOT EXISTS admin_challenges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    challenge_date TEXT NOT NULL,
+    count INTEGER DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, challenge_date)
+  )
+`);
+db.run(`
+  CREATE TABLE IF NOT EXISTS rewards (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    condition_type TEXT NOT NULL, -- 'xp', 'level', 'quest', 'rank'
+    condition_value TEXT,
+    reward_type TEXT NOT NULL,    -- 'ticket', 'gift', 'discount'
+    reward_value TEXT NOT NULL,
+    image TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+db.run(`
+  CREATE TABLE IF NOT EXISTS email_verifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    otp TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    verified BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  )
+`);
+db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='quests'", (err, row) => {
+  if (err) return;
+  if (row && !row.sql.includes('requires_approval')) {
+    db.run(`ALTER TABLE quests ADD COLUMN requires_approval BOOLEAN DEFAULT 0`);
+  }
+});
+db.get("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'", (err, row) => {
+  if (err) return;
+  if (row && !row.sql.includes('email')) {
+    db.run(`ALTER TABLE users ADD COLUMN email TEXT`);
+  }
+  if (row && !row.sql.includes('is_verified')) {
+    db.run(`ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT 0`);
+  }
+});
+db.run(`
+  CREATE TABLE IF NOT EXISTS quest_approvals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_quest_id INTEGER NOT NULL,
+    admin_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+    note TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME,
+    FOREIGN KEY (user_quest_id) REFERENCES user_quests(id),
+    FOREIGN KEY (admin_id) REFERENCES users(id)
+  )
+`);
 
   // Seed heroes
   db.get(`SELECT COUNT(*) as count FROM heroes`, (err, row) => {

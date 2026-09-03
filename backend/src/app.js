@@ -16,7 +16,7 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// Routes
+// ===== Routes =====
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const matchRoutes = require('./routes/matches');
@@ -25,7 +25,9 @@ const rankingRoutes = require('./routes/rankingRoutes');
 const questRoutes = require('./routes/questRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const exportRoutes = require('./routes/exportRoutes');
+const rewardRoutes = require('./routes/rewardRoutes');
 
+// ===== Register routes =====
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
@@ -34,6 +36,7 @@ app.use('/api/ranking', rankingRoutes);
 app.use('/api/quests', questRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/rewards', rewardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -46,13 +49,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// ===== SOCKET.IO =====
+// ===== Socket.io =====
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"]
-  }
+    origin: 'http://localhost:5173',
+    methods: ['GET', 'POST'],
+  },
 });
 
 app.set('io', io);
@@ -64,7 +67,7 @@ io.on('connection', (socket) => {
   });
 });
 
-// Khởi động server với socket
+// ===== Start server =====
 server.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
   console.log(`🔌 WebSocket ready`);

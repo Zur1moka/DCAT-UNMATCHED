@@ -1,16 +1,16 @@
-// src/models/User.js
+// backend/src/models/User.js
 const db = require('../config/database');
 
 class User {
-  static async create({ username, passwordHash, role = 'user' }) {
+  static async create({ username, passwordHash, email, role = 'user', is_verified = 0 }) {
     return new Promise((resolve, reject) => {
       const stmt = db.prepare(
-        `INSERT INTO users (username, password_hash, role, xp, honor_points, level, wins, losses) 
-         VALUES (?, ?, ?, 0, 0, 1, 0, 0)`
+        `INSERT INTO users (username, password_hash, email, role, is_verified, xp, honor_points, level, wins, losses) 
+         VALUES (?, ?, ?, ?, ?, 0, 0, 1, 0, 0)`
       );
-      stmt.run(username, passwordHash, role, function(err) {
+      stmt.run(username, passwordHash, email, role, is_verified, function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, username, role });
+        resolve({ id: this.lastID, username, email, role, is_verified });
       });
       stmt.finalize();
     });
@@ -19,7 +19,7 @@ class User {
   static async findByUsername(username) {
     return new Promise((resolve, reject) => {
       db.get(`SELECT * FROM users WHERE username = ?`, [username], (err, row) => {
-        if (err) return reject(err);
+        if (err) reject(err);
         resolve(row);
       });
     });
@@ -28,7 +28,7 @@ class User {
   static async findById(id) {
     return new Promise((resolve, reject) => {
       db.get(`SELECT * FROM users WHERE id = ?`, [id], (err, row) => {
-        if (err) return reject(err);
+        if (err) reject(err);
         resolve(row);
       });
     });
@@ -48,8 +48,8 @@ class User {
 
   static async getAll() {
     return new Promise((resolve, reject) => {
-      db.all(`SELECT id, username, xp, honor_points, level, wins, losses, role FROM users`, (err, rows) => {
-        if (err) return reject(err);
+      db.all(`SELECT id, username, email, xp, honor_points, level, wins, losses, role, is_verified FROM users`, (err, rows) => {
+        if (err) reject(err);
         resolve(rows);
       });
     });
