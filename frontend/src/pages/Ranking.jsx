@@ -1,4 +1,3 @@
-// src/pages/Ranking.jsx
 import React, { useState, useEffect } from 'react';
 import { getExpRanking } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
@@ -6,6 +5,8 @@ import { useSocket } from '../hooks/useSocket';
 const Ranking = () => {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
   const socket = useSocket();
 
   const fetchRanking = async () => {
@@ -26,14 +27,19 @@ const Ranking = () => {
 
   useEffect(() => {
     if (!socket) return;
-    socket.on('newMatch', (data) => {
-      console.log('📡 New match received:', data);
-      fetchRanking(); // Tự động refresh
+    socket.on('newMatch', () => {
+      fetchRanking();
     });
     return () => socket.off('newMatch');
   }, [socket]);
 
   if (loading) return <div className="p-6 text-gray-400">Đang tải...</div>;
+
+  const totalPages = Math.ceil(rankings.length / ITEMS_PER_PAGE);
+  const currentItems = rankings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
@@ -54,20 +60,45 @@ const Ranking = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800">
-            {rankings.map((player, index) => (
-              <tr key={player.id} className="hover:bg-gray-800/30 transition duration-200">
-                <td className="p-4 text-2xl font-bold text-gold">
-                  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                </td>
-                <td className="p-4 font-semibold text-white">{player.username}</td>
-                <td className="p-4">{player.level}</td>
-                <td className="p-4 text-gold font-mono">{player.xp.toLocaleString()}</td>
-                <td className="p-4 text-green-400">{player.wins}</td>
-              </tr>
-            ))}
+            {currentItems.map((player, index) => {
+              const globalIndex = (currentPage - 1) * ITEMS_PER_PAGE + index;
+              return (
+                <tr key={player.id} className="hover:bg-gray-800/30 transition duration-200">
+                  <td className="p-4 text-2xl font-bold text-gold">
+                    {globalIndex === 0 ? '🥇' : globalIndex === 1 ? '🥈' : globalIndex === 2 ? '🥉' : `#${globalIndex + 1}`}
+                  </td>
+                  <td className="p-4 font-semibold text-white">{player.username}</td>
+                  <td className="p-4">{player.level}</td>
+                  <td className="p-4 text-gold font-mono">{player.xp.toLocaleString()}</td>
+                  <td className="p-4 text-green-400">{player.wins}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 bg-gray-800 rounded disabled:opacity-50 text-white"
+          >
+            ←
+          </button>
+          <span className="text-sm text-gray-400">
+            Trang {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 bg-gray-800 rounded disabled:opacity-50 text-white"
+          >
+            →
+          </button>
+        </div>
+      )}
     </div>
   );
 };
