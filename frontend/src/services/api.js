@@ -36,8 +36,14 @@ api.interceptors.response.use(
 );
 
 // ===== AUTH =====
-export const register = (username, password) => api.post('/auth/register', { username, password });
-export const login = (username, password) => api.post('/auth/login', { username, password });
+export const register = (username, password, email) => 
+  api.post('/auth/register', { username, password, email });
+export const login = (username, password) => 
+  api.post('/auth/login', { username, password });
+export const verifyOTP = (email, otp) => 
+  api.post('/auth/verify-otp', { email, otp });
+export const resendOTP = (email) => 
+  api.post('/auth/resend-otp', { email });
 
 // ===== USER =====
 export const getProfile = () => api.get('/users/profile');
@@ -45,7 +51,9 @@ export const getAllUsers = () => api.get('/users');
 
 // ===== MATCHES =====
 export const createMatch = (data) => api.post('/matches', data);
-export const getMatchHistory = (userId) => api.get(`/matches/history/${userId || ''}`);
+export const getMatchHistory = (userId) => api.get(`/matches/history/${userId}`);
+export const deleteMatch = (id) => api.delete(`/matches/${id}`);
+export const getAllMatches = () => api.get('/matches');
 
 // ===== HEROES =====
 export const getHeroes = () => api.get('/heroes');
@@ -58,5 +66,26 @@ export const getHonorRanking = () => api.get('/ranking/honor');
 export const checkIn = () => api.post('/quests/checkin');
 export const getUserQuests = () => api.get('/quests');
 export const adminCheckIn = (userId) => api.post(`/admin/checkin/${userId}`);
+
+// ===== EXPORT =====
+export const exportUsers = () => api.get('/export/users', { responseType: 'blob' });
+export const exportMatches = () => api.get('/export/matches', { responseType: 'blob' });
+export const exportRanking = () => api.get('/export/ranking', { responseType: 'blob' });
+
+// HEROES - CRUD
+export const createHero = (data) => api.post('/heroes', data);
+export const updateHero = (id, data) => api.put(`/heroes/${id}`, data);
+export const deleteHero = (id) => api.delete(`/heroes/${id}`);
+
+// ===== QUEST APPROVALS =====
+export const getPendingQuests = () => api.get('/quests/pending');
+export const approveQuest = (userQuestId, status, note = '') => 
+  api.put(`/quests/approve/${userQuestId}`, { status, note });
+
+// ===== REWARDS =====
+export const getRewards = () => api.get('/rewards');
+export const createReward = (data) => api.post('/rewards', data);
+export const updateReward = (id, data) => api.put(`/rewards/${id}`, data);
+export const deleteReward = (id) => api.delete(`/rewards/${id}`);
 
 export default api;
