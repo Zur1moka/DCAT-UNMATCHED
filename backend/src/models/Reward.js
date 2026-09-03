@@ -1,65 +1,44 @@
 // backend/src/models/Reward.js
-const db = require('../config/database');
+const pool = require('../config/database');
 
 class Reward {
   static async create(data) {
     const { name, description, condition_type, condition_value, reward_type, reward_value, image } = data;
-    return new Promise((resolve, reject) => {
-      const stmt = db.prepare(`
-        INSERT INTO rewards (name, description, condition_type, condition_value, reward_type, reward_value, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-      stmt.run(name, description, condition_type, condition_value, reward_type, reward_value, image, function (err) {
-        if (err) reject(err);
-        resolve({ id: this.lastID, ...data });
-      });
-      stmt.finalize();
-    });
+    const result = await pool.query(
+      `INSERT INTO rewards (name, description, condition_type, condition_value, reward_type, reward_value, image)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [name, description, condition_type, condition_value, reward_type, reward_value, image]
+    );
+    return result.rows[0];
   }
 
   static async findAll() {
-    return new Promise((resolve, reject) => {
-      db.all(`SELECT * FROM rewards ORDER BY id DESC`, (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      });
-    });
+    const result = await pool.query(`SELECT * FROM rewards ORDER BY id DESC`);
+    return result.rows;
   }
 
   static async findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM rewards WHERE id = ?`, [id], (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      });
-    });
+    const result = await pool.query(`SELECT * FROM rewards WHERE id = $1`, [id]);
+    return result.rows[0];
   }
 
   static async update(id, data) {
-    const fields = Object.keys(data)
-      .filter((k) => k !== 'id' && k !== 'created_at')
-      .map((k) => `${k} = ?`)
-      .join(', ');
-    const values = Object.keys(data)
-      .filter((k) => k !== 'id' && k !== 'created_at')
-      .map((k) => data[k]);
-    values.push(id);
-
-    return new Promise((resolve, reject) => {
-      db.run(`UPDATE rewards SET ${fields} WHERE id = ?`, values, function (err) {
-        if (err) reject(err);
-        resolve(this.changes);
-      });
-    });
+    const keys = Object.keys(data).filter(k => k !== 'id' && k !== 'created_at');
+    if (keys.length === 0) return null;
+    
+    const setClause = keys.map((key, index) => `${key} = $${index + 1}`).join(', ');
+    const values = [...keys.map(k => data[k]), id];
+    
+    const result = await pool.query(
+      `UPDATE rewards SET ${setClause} WHERE id = $${keys.length + 1} RETURNING *`,
+      values
+    );
+    return result.rows[0];
   }
 
   static async delete(id) {
-    return new Promise((resolve, reject) => {
-      db.run(`DELETE FROM rewards WHERE id = ?`, [id], function (err) {
-        if (err) reject(err);
-        resolve(this.changes);
-      });
-    });
+    const result = await pool.query(`DELETE FROM rewards WHERE id = $1 RETURNING id`, [id]);
+    return result.rows[0];
   }
 }
 

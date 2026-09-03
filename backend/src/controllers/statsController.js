@@ -1,83 +1,84 @@
-const db = require('../config/database');
+// backend/src/controllers/statsController.js
+const pool = require('../config/database');
 
-exports.getOverviewStats = (req, res) => {
-  const queries = {
-    totalUsers: 'SELECT COUNT(*) as count FROM users',
-    totalMatches: 'SELECT COUNT(*) as count FROM matches',
-    totalCheckins: 'SELECT COUNT(*) as count FROM checkins',
-    totalQuestsCompleted: 'SELECT COUNT(*) as count FROM user_quests',
-  };
+// ===== TỔNG QUAN =====
+exports.getOverviewStats = async (req, res) => {
+  try {
+    // Tổng người chơi
+    const totalUsersResult = await pool.query('SELECT COUNT(*) as count FROM users');
+    const totalUsers = totalUsersResult.rows[0].count;
 
-  const results = {};
+    // Tổng trận đấu
+    const totalMatchesResult = await pool.query('SELECT COUNT(*) as count FROM matches');
+    const totalMatches = totalMatchesResult.rows[0].count;
 
-  const runQuery = (key, sql) => {
-    return new Promise((resolve, reject) => {
-      db.get(sql, (err, row) => {
-        if (err) reject(err);
-        results[key] = row ? row.count : 0;
-        resolve();
-      });
+    // Tổng check-in
+    const totalCheckinsResult = await pool.query('SELECT COUNT(*) as count FROM checkins');
+    const totalCheckins = totalCheckinsResult.rows[0].count;
+
+    // Tổng nhiệm vụ hoàn thành
+    const totalQuestsResult = await pool.query('SELECT COUNT(*) as count FROM user_quests');
+    const totalQuestsCompleted = totalQuestsResult.rows[0].count;
+
+    // Top 5 tướng được sử dụng nhiều nhất
+    const topHeroesResult = await pool.query(`
+      SELECT name, tier, usage_count, wins, losses,
+             ROUND(1.0 * wins / NULLIF(usage_count, 0) * 100, 1) as winrate
+      FROM heroes
+      WHERE usage_count > 0
+      ORDER BY usage_count DESC
+      LIMIT 5
+    `);
+    const topHeroes = topHeroesResult.rows;
+
+    res.json({
+      totalUsers,
+      totalMatches,
+      totalCheckins,
+      totalQuestsCompleted,
+      topHeroes
     });
-  };
-
-  Promise.all(Object.keys(queries).map(key => runQuery(key, queries[key])))
-    .then(() => {
-      db.all(
-        `
-        SELECT name, tier, usage_count, wins, losses,
-               ROUND(1.0 * wins / NULLIF(usage_count, 0) * 100, 1) as winrate
-        FROM heroes
-        WHERE usage_count > 0
-        ORDER BY usage_count DESC
-        LIMIT 5
-        `,
-        (err, topHeroes) => {
-          if (err) return res.status(500).json({ error: err.message });
-          results.topHeroes = topHeroes || [];
-          res.json(results);
-        }
-      );
-    })
-    .catch(err => res.status(500).json({ error: err.message }));
+  } catch (err) {
+    console.error('Lỗi getOverviewStats:', err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
-exports.getDailyStats = (req, res) => {
-  const { days = 7 } = req.query;
-  const daysAgo = new Date();
-  daysAgo.setDate(daysAgo.getDate() - days);
-
-  db.all(
-    `
-    SELECT 
-      DATE(created_at) as date,
-      COUNT(*) as matches,
-      SUM(xp_awarded) as total_xp
-    FROM matches
-    WHERE created_at >= ?
-    GROUP BY DATE(created_at)
-    ORDER BY date ASC
-    `,
-    [daysAgo.toISOString()],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows || []);
-    }
-  );
+// ===== THỐNG KÊ THEO NGÀY =====
+exports.getDailyStats = async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const result = await pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as matches,
+        SUM(xp_awarded) as total_xp
+      FROM matches
+      WHERE created_at >= NOW() - INTERVAL '${days} days'
+      GROUP BY DATE(created_at)
+      ORDER BY date ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Lỗi getDailyStats:', err);
+    res.status(500).json({ error: err.message });
+  }
 };
 
-exports.getLevelDistribution = (req, res) => {
-  db.all(
-    `
-    SELECT 
-      level,
-      COUNT(*) as count
-    FROM users
-    GROUP BY level
-    ORDER BY level ASC
-    `,
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows || []);
-    }
-  );
+// ===== PHÂN BỐ CẤP ĐỘ =====
+exports.getLevelDistribution = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        level,
+        COUNT(*) as count
+      FROM users
+      GROUP BY level
+      ORDER BY level ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Lỗi getLevelDistribution:', err);
+    res.status(500).json({ error: err.message });
+  }
 };

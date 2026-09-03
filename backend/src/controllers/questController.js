@@ -1,5 +1,6 @@
 // backend/src/controllers/questController.js
-const { checkIn, getUserQuests, approveQuest, getPendingQuests } = require('../services/questService');
+const pool = require('../config/database');
+const { checkIn, approveQuest } = require('../services/questService');
 
 // ===== CHECK-IN =====
 exports.doCheckIn = async (req, res) => {
@@ -16,21 +17,16 @@ exports.doCheckIn = async (req, res) => {
 exports.getUserQuests = async (req, res) => {
   try {
     const userId = req.user.id;
-    const db = require('../config/database');
-    const quests = await new Promise((resolve, reject) => {
-      db.all(`
-        SELECT q.*, 
-               CASE WHEN uq.id IS NOT NULL THEN 1 ELSE 0 END as completed
-        FROM quests q
-        LEFT JOIN user_quests uq ON q.id = uq.quest_id AND uq.user_id = ?
-        WHERE q.is_active = 1
-      `, [userId], (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      });
-    });
-    res.json(quests);
+    const result = await pool.query(`
+      SELECT q.*, 
+             CASE WHEN uq.id IS NOT NULL THEN 1 ELSE 0 END as completed
+      FROM quests q
+      LEFT JOIN user_quests uq ON q.id = uq.quest_id AND uq.user_id = $1
+      WHERE q.is_active = true
+    `, [userId]);
+    res.json(result.rows);
   } catch (err) {
+    console.error('Lỗi getUserQuests:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -38,36 +34,28 @@ exports.getUserQuests = async (req, res) => {
 // ===== LẤY DANH SÁCH NHIỆM VỤ CHỜ DUYỆT (ADMIN) =====
 exports.getPendingQuests = async (req, res) => {
   try {
-    const db = require('../config/database');
-    const pending = await new Promise((resolve, reject) => {
-      db.all(
-        `
-        SELECT 
-          qa.id,
-          qa.user_quest_id,
-          qa.status,
-          qa.created_at,
-          u.username as user_name,
-          q.name as quest_name,
-          q.description,
-          q.reward_xp,
-          q.reward_honor,
-          uq.completed_at
-        FROM quest_approvals qa
-        JOIN user_quests uq ON qa.user_quest_id = uq.id
-        JOIN users u ON uq.user_id = u.id
-        JOIN quests q ON uq.quest_id = q.id
-        WHERE qa.status = 'pending'
-        ORDER BY qa.created_at ASC
-        `,
-        (err, rows) => {
-          if (err) reject(err);
-          resolve(rows);
-        }
-      );
-    });
-    res.json(pending);
+    const result = await pool.query(`
+      SELECT 
+        qa.id,
+        qa.user_quest_id,
+        qa.status,
+        qa.created_at,
+        u.username as user_name,
+        q.name as quest_name,
+        q.description,
+        q.reward_xp,
+        q.reward_honor,
+        uq.completed_at
+      FROM quest_approvals qa
+      JOIN user_quests uq ON qa.user_quest_id = uq.id
+      JOIN users u ON uq.user_id = u.id
+      JOIN quests q ON uq.quest_id = q.id
+      WHERE qa.status = 'pending'
+      ORDER BY qa.created_at ASC
+    `);
+    res.json(result.rows);
   } catch (err) {
+    console.error('Lỗi getPendingQuests:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -86,6 +74,7 @@ exports.approveQuest = async (req, res) => {
       result 
     });
   } catch (err) {
+    console.error('Lỗi approveQuest:', err);
     res.status(400).json({ error: err.message });
   }
 };

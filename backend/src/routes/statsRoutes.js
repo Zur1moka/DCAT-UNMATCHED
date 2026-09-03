@@ -1,3 +1,4 @@
+// backend/src/routes/statsRoutes.js
 const express = require('express');
 const { getOverviewStats, getDailyStats, getLevelDistribution } = require('../controllers/statsController');
 const { adminAuth } = require('../middleware/auth');

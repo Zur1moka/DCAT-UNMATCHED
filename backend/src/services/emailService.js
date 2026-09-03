@@ -1,24 +1,16 @@
 // backend/src/services/emailService.js
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// Cấu hình transporter từ biến môi trường (Brevo SMTP)
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true cho port 465
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Cấu hình SendGrid API Key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 /**
  * Gửi email xác thực OTP
  */
 async function sendVerificationEmail(email, otp, username) {
-  const mailOptions = {
-    from: process.env.FROM_EMAIL || 'khoaphan.0824@gmail.com',
+  const msg = {
     to: email,
+    from: process.env.FROM_EMAIL || 'khoaphan.0824@gmail.com',
     subject: '🔐 Xác thực tài khoản Unmatched',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -38,11 +30,11 @@ async function sendVerificationEmail(email, otp, username) {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${email}. Message ID: ${info.messageId}`);
-    return info;
+    const response = await sgMail.send(msg);
+    console.log(`✅ Email sent to ${email}`);
+    return response;
   } catch (error) {
-    console.error('❌ Error sending email:', error);
+    console.error('❌ Error sending email via SendGrid:', error.response?.body || error);
     throw new Error('Không thể gửi email xác thực. Vui lòng thử lại sau.');
   }
 }
@@ -51,9 +43,9 @@ async function sendVerificationEmail(email, otp, username) {
  * Gửi email đặt lại mật khẩu
  */
 async function sendResetPasswordEmail(email, resetLink, username) {
-  const mailOptions = {
-    from: process.env.FROM_EMAIL || 'khoaphan.0824@gmail.com',
+  const msg = {
     to: email,
+    from: process.env.FROM_EMAIL || 'khoaphan.0824@gmail.com',
     subject: '🔑 Đặt lại mật khẩu Unmatched',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
@@ -75,11 +67,11 @@ async function sendResetPasswordEmail(email, resetLink, username) {
   };
 
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Reset email sent to ${email}. Message ID: ${info.messageId}`);
-    return info;
+    const response = await sgMail.send(msg);
+    console.log(`✅ Reset email sent to ${email}`);
+    return response;
   } catch (error) {
-    console.error('❌ Error sending reset email:', error);
+    console.error('❌ Error sending reset email via SendGrid:', error.response?.body || error);
     throw new Error('Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.');
   }
 }
