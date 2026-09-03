@@ -1,4 +1,3 @@
-// backend/src/app.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -10,13 +9,11 @@ const { Server } = require('socket.io');
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Middleware
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
-// ===== Routes =====
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const matchRoutes = require('./routes/matches');
@@ -26,8 +23,8 @@ const questRoutes = require('./routes/questRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const exportRoutes = require('./routes/exportRoutes');
 const rewardRoutes = require('./routes/rewardRoutes');
+const statsRoutes = require('./routes/statsRoutes');
 
-// ===== Register routes =====
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/matches', matchRoutes);
@@ -37,25 +34,23 @@ app.use('/api/quests', questRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/rewards', rewardRoutes);
+app.use('/api/stats', statsRoutes);
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Unmatched API is running' });
 });
 
-// Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// ===== Socket.io =====
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST'],
-  },
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
 });
 
 app.set('io', io);
@@ -67,7 +62,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// ===== Start server =====
 server.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
   console.log(`🔌 WebSocket ready`);

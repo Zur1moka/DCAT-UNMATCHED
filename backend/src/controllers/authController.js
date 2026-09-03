@@ -1,16 +1,14 @@
-// backend/src/controllers/authController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const db = require('../config/database');
-const { sendVerificationEmail } = require('../services/emailService');
+const { sendVerificationEmail, sendResetPasswordEmail } = require('../services/emailService');
 
-// Tạo OTP ngẫu nhiên 6 số
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// ===== ĐĂNG KÝ =====
 exports.register = async (req, res) => {
   try {
     const { username, password, email, role = 'user' } = req.body;
@@ -18,13 +16,11 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Vui lòng nhập đầy đủ thông tin' });
     }
 
-    // Kiểm tra username đã tồn tại
     const existing = await User.findByUsername(username);
     if (existing) {
       return res.status(400).json({ error: 'Tên đăng nhập đã tồn tại' });
     }
 
-    // Kiểm tra email đã tồn tại
     const emailExists = await new Promise((resolve, reject) => {
       db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
         if (err) reject(err);
@@ -35,10 +31,7 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'Email đã được sử dụng' });
     }
 
-    // Hash mật khẩu
     const hashed = await bcrypt.hash(password, 10);
-
-    // Tạo user (chưa xác thực)
     const user = await User.create({
       username,
       passwordHash: hashed,
@@ -47,11 +40,9 @@ exports.register = async (req, res) => {
       is_verified: 0,
     });
 
-    // Tạo OTP
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 phút
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Lưu OTP vào database
     await new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO email_verifications (user_id, email, otp, expires_at) VALUES (?, ?, ?, ?)`,
@@ -63,11 +54,9 @@ exports.register = async (req, res) => {
       );
     });
 
-    // Gửi email OTP
     try {
       await sendVerificationEmail(email, otp, username);
     } catch (emailError) {
-      // Nếu gửi email thất bại, vẫn tạo user nhưng thông báo lỗi
       return res.status(500).json({
         error: 'Không thể gửi email xác thực. Vui lòng thử lại sau.',
       });
@@ -84,7 +73,6 @@ exports.register = async (req, res) => {
   }
 };
 
-// ===== XÁC THỰC OTP =====
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -92,7 +80,6 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ error: 'Vui lòng nhập email và mã OTP' });
     }
 
-    // Tìm bản ghi OTP
     const record = await new Promise((resolve, reject) => {
       db.get(
         `SELECT * FROM email_verifications WHERE email = ? AND otp = ? AND verified = 0 ORDER BY created_at DESC LIMIT 1`,
@@ -108,12 +95,10 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ error: 'Mã OTP không hợp lệ' });
     }
 
-    // Kiểm tra hết hạn
     if (new Date(record.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Mã OTP đã hết hạn' });
     }
 
-    // Cập nhật user: is_verified = 1
     await new Promise((resolve, reject) => {
       db.run(`UPDATE users SET is_verified = 1 WHERE id = ?`, [record.user_id], function (err) {
         if (err) reject(err);
@@ -121,7 +106,6 @@ exports.verifyOTP = async (req, res) => {
       });
     });
 
-    // Cập nhật bản ghi OTP
     await new Promise((resolve, reject) => {
       db.run(`UPDATE email_verifications SET verified = 1 WHERE id = ?`, [record.id], function (err) {
         if (err) reject(err);
@@ -136,7 +120,6 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
-// ===== ĐĂNG NHẬP (KIỂM TRA ĐÃ XÁC THỰC) =====
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -145,7 +128,6 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
     }
 
-    // Kiểm tra xác thực email (nếu user có email và chưa xác thực)
     if (user.is_verified === 0) {
       return res.status(403).json({
         error: 'Tài khoản chưa được xác thực. Vui lòng kiểm tra email.',
@@ -181,13 +163,11 @@ exports.login = async (req, res) => {
   }
 };
 
-// ===== GỬI LẠI OTP =====
 exports.resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Vui lòng nhập email' });
 
-    // Tìm user
     const user = await new Promise((resolve, reject) => {
       db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
         if (err) reject(err);
@@ -197,11 +177,9 @@ exports.resendOTP = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'Email không tồn tại' });
     if (user.is_verified) return res.status(400).json({ error: 'Tài khoản đã được xác thực' });
 
-    // Tạo OTP mới
     const otp = generateOTP();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    // Lưu OTP
     await new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO email_verifications (user_id, email, otp, expires_at) VALUES (?, ?, ?, ?)`,
@@ -213,12 +191,157 @@ exports.resendOTP = async (req, res) => {
       );
     });
 
-    // Gửi email
     await sendVerificationEmail(email, otp, user.username);
-
     res.json({ message: 'Đã gửi lại mã OTP. Vui lòng kiểm tra email.' });
   } catch (err) {
     console.error('Resend OTP error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Vui lòng nhập email' });
+    }
+
+    const user = await new Promise((resolve, reject) => {
+      db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, row) => {
+        if (err) reject(err);
+        resolve(row);
+      });
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'Email không tồn tại trong hệ thống' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO password_resets (user_id, email, token, expires_at) VALUES (?, ?, ?, ?)`,
+        [user.id, email, token, expiresAt.toISOString()],
+        function (err) {
+          if (err) reject(err);
+          resolve(this.lastID);
+        }
+      );
+    });
+
+    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+
+    try {
+      await sendResetPasswordEmail(email, resetLink, user.username);
+    } catch (emailError) {
+      return res.status(500).json({
+        error: 'Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.',
+      });
+    }
+
+    res.json({
+      message: 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.',
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ error: 'Token không hợp lệ' });
+    }
+
+    const record = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM password_resets WHERE token = ? AND used = 0`,
+        [token],
+        (err, row) => {
+          if (err) reject(err);
+          resolve(row);
+        }
+      );
+    });
+
+    if (!record) {
+      return res.status(400).json({ error: 'Token không hợp lệ hoặc đã được sử dụng' });
+    }
+
+    if (new Date(record.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token đã hết hạn' });
+    }
+
+    res.json({
+      valid: true,
+      email: record.email,
+      userId: record.user_id,
+    });
+  } catch (err) {
+    console.error('Verify reset token error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Mật khẩu phải có ít nhất 6 ký tự' });
+    }
+
+    const record = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM password_resets WHERE token = ? AND used = 0`,
+        [token],
+        (err, row) => {
+          if (err) reject(err);
+          resolve(row);
+        }
+      );
+    });
+
+    if (!record) {
+      return res.status(400).json({ error: 'Token không hợp lệ hoặc đã được sử dụng' });
+    }
+
+    if (new Date(record.expires_at) < new Date()) {
+      return res.status(400).json({ error: 'Token đã hết hạn' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE users SET password_hash = ? WHERE id = ?`,
+        [hashed, record.user_id],
+        function (err) {
+          if (err) reject(err);
+          resolve(this.changes);
+        }
+      );
+    });
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE password_resets SET used = 1 WHERE id = ?`,
+        [record.id],
+        function (err) {
+          if (err) reject(err);
+          resolve(this.changes);
+        }
+      );
+    });
+
+    res.json({ message: 'Mật khẩu đã được đặt lại thành công. Vui lòng đăng nhập.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
     res.status(500).json({ error: err.message });
   }
 };
