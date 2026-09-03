@@ -1,9 +1,8 @@
 // backend/src/controllers/adminUserController.js
-const db = require('../config/database');
+const pool = require('../config/database');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-// Lấy danh sách tất cả user
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.getAll();
@@ -13,7 +12,6 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-// Cập nhật user (role, email, username)
 exports.updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -29,7 +27,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// Reset mật khẩu user
 exports.resetPassword = async (req, res) => {
   try {
     const { id } = req.params;
@@ -45,20 +42,19 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// Xóa user (có cascade)
 exports.deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     // Xóa các bản ghi liên quan
-    await db.run('DELETE FROM matches WHERE player1_id = ? OR player2_id = ?', [id, id]);
-    await db.run('DELETE FROM checkins WHERE user_id = ?', [id]);
-    await db.run('DELETE FROM user_quests WHERE user_id = ?', [id]);
-    await db.run('DELETE FROM quest_approvals WHERE user_id = ?', [id]);
-    await db.run('DELETE FROM email_verifications WHERE user_id = ?', [id]);
-    await db.run('DELETE FROM password_resets WHERE user_id = ?', [id]);
-    await db.run('DELETE FROM admin_challenges WHERE user_id = ?', [id]);
+    await pool.query('DELETE FROM matches WHERE player1_id = $1 OR player2_id = $1', [id]);
+    await pool.query('DELETE FROM checkins WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM user_quests WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM quest_approvals WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM email_verifications WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM password_resets WHERE user_id = $1', [id]);
+    await pool.query('DELETE FROM admin_challenges WHERE user_id = $1', [id]);
     // Xóa user
-    await db.run('DELETE FROM users WHERE id = ?', [id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
     res.json({ message: 'Xóa user thành công' });
   } catch (err) {
     res.status(500).json({ error: err.message });

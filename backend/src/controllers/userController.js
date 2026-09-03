@@ -1,4 +1,4 @@
-// src/controllers/userController.js
+// backend/src/controllers/userController.js
 const User = require('../models/User');
 const { calculateLevelAndOvercap, getXpForNextLevel } = require('../services/userService');
 
@@ -11,10 +11,11 @@ exports.getProfile = async (req, res) => {
     res.json({
       ...user,
       password_hash: undefined,
-      levelInfo,
+      ...levelInfo,
       nextXp
     });
   } catch (err) {
+    console.error('Lỗi getProfile:', err);
     res.status(500).json({ error: err.message });
   }
 };

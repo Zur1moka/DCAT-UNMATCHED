@@ -3,12 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { processMatch } = require('../services/matchService');
 const { adminAuth } = require('../middleware/auth');
-const db = require('../config/database');
+const pool = require('../config/database');
 const User = require('../models/User');
-const Hero = require('../models/Hero');
 const { calculateLevelAndOvercap } = require('../services/userService');
 
-// POST /api/matches - Tạo trận mới
 router.post('/', async (req, res) => {
   try {
     const {
@@ -29,7 +27,6 @@ router.post('/', async (req, res) => {
       isBountyChallenge: isBountyChallenge || false
     });
 
-    // Emit realtime
     const io = req.app.get('io');
     if (io) {
       io.emit('newMatch', { match: result, timestamp: new Date().toISOString() });
@@ -42,100 +39,71 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/matches/history/:userId
 router.get('/history/:userId', async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) return res.status(400).json({ error: 'ID không hợp lệ' });
-    db.all(
-      `SELECT m.*, u1.username as player1_name, u2.username as player2_name, w.username as winner_name
-       FROM matches m
-       LEFT JOIN users u1 ON m.player1_id = u1.id
-       LEFT JOIN users u2 ON m.player2_id = u2.id
-       LEFT JOIN users w ON m.winner_id = w.id
-       WHERE m.player1_id = ? OR m.player2_id = ?
-       ORDER BY m.created_at DESC`,
-      [userId, userId],
-      (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-      }
-    );
+    const result = await pool.query(`
+      SELECT m.*, u1.username as player1_name, u2.username as player2_name, w.username as winner_name
+      FROM matches m
+      LEFT JOIN users u1 ON m.player1_id = u1.id
+      LEFT JOIN users u2 ON m.player2_id = u2.id
+      LEFT JOIN users w ON m.winner_id = w.id
+      WHERE m.player1_id = $1 OR m.player2_id = $1
+      ORDER BY m.created_at DESC
+    `, [userId]);
+    res.json(result.rows);
   } catch (error) {
+    console.error('Lỗi history:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// GET /api/matches - Tất cả trận (admin)
 router.get('/', adminAuth, async (req, res) => {
   try {
-    db.all(
-      `SELECT m.*, u1.username as player1_name, u2.username as player2_name, w.username as winner_name
-       FROM matches m
-       LEFT JOIN users u1 ON m.player1_id = u1.id
-       LEFT JOIN users u2 ON m.player2_id = u2.id
-       LEFT JOIN users w ON m.winner_id = w.id
-       ORDER BY m.created_at DESC`,
-      (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-      }
-    );
+    const result = await pool.query(`
+      SELECT m.*, u1.username as player1_name, u2.username as player2_name, w.username as winner_name
+      FROM matches m
+      LEFT JOIN users u1 ON m.player1_id = u1.id
+      LEFT JOIN users u2 ON m.player2_id = u2.id
+      LEFT JOIN users w ON m.winner_id = w.id
+      ORDER BY m.created_at DESC
+    `);
+    res.json(result.rows);
   } catch (error) {
+    console.error('Lỗi getAllMatches:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// PUT /api/matches/:id - Cập nhật trận (admin)
 router.put('/:id', adminAuth, async (req, res) => {
   try {
     const matchId = req.params.id;
-    const {
-      player1Id, player2Id, winnerId,
-      player1Hero, player2Hero,
-      isAdminChallenge, isHandicap, isBountyChallenge
-    } = req.body;
-
-    // Lấy thông tin trận cũ
-    const oldMatch = await new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM matches WHERE id = ?`, [matchId], (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      });
-    });
-    if (!oldMatch) return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
-
-    // TODO: Cần logic hoàn chỉnh để hoàn tác điểm cũ và cộng điểm mới
-    // Phức tạp, tạm thời chưa implement đầy đủ
-
+    const oldMatch = await pool.query(`SELECT * FROM matches WHERE id = $1`, [matchId]);
+    if (oldMatch.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
+    }
     res.status(501).json({ error: 'Chức năng đang phát triển' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// DELETE /api/matches/:id - Xóa trận (admin)
 router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const matchId = req.params.id;
+    const matchResult = await pool.query(`SELECT * FROM matches WHERE id = $1`, [matchId]);
+    if (matchResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
+    }
+    const match = matchResult.rows[0];
 
-    // Lấy thông tin trận
-    const match = await new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM matches WHERE id = ?`, [matchId], (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      });
-    });
-    if (!match) return res.status(404).json({ error: 'Không tìm thấy trận đấu' });
-
-    // Hoàn tác điểm cho người thắng
     const winner = await User.findById(match.winner_id);
     const loserId = match.player1_id === match.winner_id ? match.player2_id : match.player1_id;
     const loser = await User.findById(loserId);
 
     if (winner) {
       const newXp = Math.max(0, winner.xp - match.xp_awarded);
-      // Nếu có honor, trừ đi (tạm thời bỏ qua phức tạp)
       const levelInfo = calculateLevelAndOvercap(newXp);
       await User.update(match.winner_id, {
         xp: newXp,
@@ -152,15 +120,8 @@ router.delete('/:id', adminAuth, async (req, res) => {
       });
     }
 
-    // Xóa trận
-    await new Promise((resolve, reject) => {
-      db.run(`DELETE FROM matches WHERE id = ?`, [matchId], function(err) {
-        if (err) reject(err);
-        resolve(this.changes);
-      });
-    });
+    await pool.query(`DELETE FROM matches WHERE id = $1`, [matchId]);
 
-    // Emit realtime
     const io = req.app.get('io');
     if (io) {
       io.emit('matchDeleted', { matchId });
