@@ -1,25 +1,37 @@
 // src/pages/Ranking.jsx
 import React, { useState, useEffect } from 'react';
 import { getExpRanking } from '../services/api';
+import { useSocket } from '../hooks/useSocket';
 
 const Ranking = () => {
   const [rankings, setRankings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
+
+  const fetchRanking = async () => {
+    try {
+      const res = await getExpRanking();
+      setRankings(res.data || []);
+    } catch (err) {
+      console.error('Lỗi lấy ranking EXP:', err);
+      setRankings([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await getExpRanking();
-        setRankings(res.data || []);
-      } catch (err) {
-        console.error('Lỗi lấy ranking EXP:', err);
-        setRankings([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
+    fetchRanking();
   }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('newMatch', (data) => {
+      console.log('📡 New match received:', data);
+      fetchRanking(); // Tự động refresh
+    });
+    return () => socket.off('newMatch');
+  }, [socket]);
 
   if (loading) return <div className="p-6 text-gray-400">Đang tải...</div>;
 
