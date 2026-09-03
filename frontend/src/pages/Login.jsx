@@ -1,6 +1,5 @@
-// frontend/src/pages/Login.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { login, register, verifyOTP, resendOTP } from '../services/api';
 
 const Login = () => {
@@ -147,6 +146,14 @@ const Login = () => {
                 </p>
               )}
             </div>
+
+            {isLogin && (
+              <div className="text-center">
+                <Link to="/forgot-password" className="text-sm text-gray-400 hover:text-white transition">
+                  Quên mật khẩu?
+                </Link>
+              </div>
+            )}
           </form>
         ) : (
           <div className="space-y-4">

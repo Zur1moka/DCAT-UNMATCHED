@@ -1,4 +1,3 @@
-// src/services/api.js
 import axios from 'axios';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -10,7 +9,6 @@ const api = axios.create({
   },
 });
 
-// Interceptor: tự động gắn token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -22,7 +20,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor: xử lý lỗi 401 -> chuyển về login
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -44,6 +41,12 @@ export const verifyOTP = (email, otp) =>
   api.post('/auth/verify-otp', { email, otp });
 export const resendOTP = (email) => 
   api.post('/auth/resend-otp', { email });
+export const forgotPassword = (email) => 
+  api.post('/auth/forgot-password', { email });
+export const verifyResetToken = (token) => 
+  api.get('/auth/verify-reset-token', { params: { token } });
+export const resetPassword = (token, newPassword) => 
+  api.post('/auth/reset-password', { token, newPassword });
 
 // ===== USER =====
 export const getProfile = () => api.get('/users/profile');
@@ -57,6 +60,9 @@ export const getAllMatches = () => api.get('/matches');
 
 // ===== HEROES =====
 export const getHeroes = () => api.get('/heroes');
+export const createHero = (data) => api.post('/heroes', data);
+export const updateHero = (id, data) => api.put(`/heroes/${id}`, data);
+export const deleteHero = (id) => api.delete(`/heroes/${id}`);
 
 // ===== RANKING =====
 export const getExpRanking = () => api.get('/ranking/exp');
@@ -66,18 +72,6 @@ export const getHonorRanking = () => api.get('/ranking/honor');
 export const checkIn = () => api.post('/quests/checkin');
 export const getUserQuests = () => api.get('/quests');
 export const adminCheckIn = (userId) => api.post(`/admin/checkin/${userId}`);
-
-// ===== EXPORT =====
-export const exportUsers = () => api.get('/export/users', { responseType: 'blob' });
-export const exportMatches = () => api.get('/export/matches', { responseType: 'blob' });
-export const exportRanking = () => api.get('/export/ranking', { responseType: 'blob' });
-
-// HEROES - CRUD
-export const createHero = (data) => api.post('/heroes', data);
-export const updateHero = (id, data) => api.put(`/heroes/${id}`, data);
-export const deleteHero = (id) => api.delete(`/heroes/${id}`);
-
-// ===== QUEST APPROVALS =====
 export const getPendingQuests = () => api.get('/quests/pending');
 export const approveQuest = (userQuestId, status, note = '') => 
   api.put(`/quests/approve/${userQuestId}`, { status, note });
@@ -87,5 +81,15 @@ export const getRewards = () => api.get('/rewards');
 export const createReward = (data) => api.post('/rewards', data);
 export const updateReward = (id, data) => api.put(`/rewards/${id}`, data);
 export const deleteReward = (id) => api.delete(`/rewards/${id}`);
+
+// ===== STATS =====
+export const getOverviewStats = () => api.get('/stats/overview');
+export const getDailyStats = (days = 7) => api.get('/stats/daily', { params: { days } });
+export const getLevelDistribution = () => api.get('/stats/levels');
+
+// ===== EXPORT =====
+export const exportUsers = () => api.get('/export/users', { responseType: 'blob' });
+export const exportMatches = () => api.get('/export/matches', { responseType: 'blob' });
+export const exportRanking = () => api.get('/export/ranking', { responseType: 'blob' });
 
 export default api;

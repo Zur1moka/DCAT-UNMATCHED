@@ -25,6 +25,7 @@ import {
   approveQuest,
 } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
+import AdminStats from './AdminStats';
 
 const AdminPanel = () => {
   const { showToast } = useToast();
@@ -363,6 +364,7 @@ const AdminPanel = () => {
           { key: 'rewards', label: '🎁 Phần thưởng' },
           { key: 'approvals', label: '✅ Phê duyệt' },
           { key: 'quests', label: '📋 Nhiệm vụ' },
+          { key: 'stats', label: '📊 Thống kê' },
           { key: 'report', label: '📊 Báo cáo' },
         ].map((tab) => (
           <button
@@ -1034,6 +1036,9 @@ const AdminPanel = () => {
           </div>
         </div>
       )}
+
+      {/* ===== TAB THỐNG KÊ ===== */}
+      {activeTab === 'stats' && <AdminStats />}
 
       {/* ===== TAB BÁO CÁO ===== */}
       {activeTab === 'report' && (
