@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastProvider } from './components/ui/ToastContext';
@@ -11,6 +12,7 @@ import TierList from './pages/TierList';
 import HonorRanking from './pages/HonorRanking';
 import AdminPanel from './pages/AdminPanel';
 import Header from './components/layout/Header';
+import Footer from './components/layout/Footer';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -32,7 +34,10 @@ function App() {
               <PrivateRoute>
                 <>
                   <Header />
-                  <main className="min-h-screen pb-10"><Dashboard /></main>
+                  <main className="min-h-screen pb-10">
+                    <Dashboard />
+                    <Footer />
+                  </main>
                 </>
               </PrivateRoute>
             }
@@ -43,7 +48,10 @@ function App() {
               <PrivateRoute>
                 <>
                   <Header />
-                  <main className="min-h-screen pb-10"><History /></main>
+                  <main className="min-h-screen pb-10">
+                    <History />
+                    <Footer />
+                  </main>
                 </>
               </PrivateRoute>
             }
@@ -54,7 +62,10 @@ function App() {
               <PrivateRoute>
                 <>
                   <Header />
-                  <main className="min-h-screen pb-10"><Ranking /></main>
+                  <main className="min-h-screen pb-10">
+                    <Ranking />
+                    <Footer />
+                  </main>
                 </>
               </PrivateRoute>
             }
@@ -65,7 +76,10 @@ function App() {
               <PrivateRoute>
                 <>
                   <Header />
-                  <main className="min-h-screen pb-10"><TierList /></main>
+                  <main className="min-h-screen pb-10">
+                    <TierList />
+                    <Footer />
+                  </main>
                 </>
               </PrivateRoute>
             }
@@ -76,7 +90,10 @@ function App() {
               <PrivateRoute>
                 <>
                   <Header />
-                  <main className="min-h-screen pb-10"><HonorRanking /></main>
+                  <main className="min-h-screen pb-10">
+                    <HonorRanking />
+                    <Footer />
+                  </main>
                 </>
               </PrivateRoute>
             }
@@ -87,7 +104,10 @@ function App() {
               <PrivateRoute>
                 <>
                   <Header />
-                  <main className="min-h-screen pb-10"><AdminPanel /></main>
+                  <main className="min-h-screen pb-10">
+                    <AdminPanel />
+                    <Footer />
+                  </main>
                 </>
               </PrivateRoute>
             }

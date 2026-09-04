@@ -1,3 +1,4 @@
+// frontend/src/pages/Login.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { login, register, verifyOTP, resendOTP } from '../services/api';
@@ -182,11 +183,6 @@ const Login = () => {
             </button>
           </div>
         )}
-
-        <div className="mt-6 text-center text-xs text-gray-500">
-          <p>Demo: khoa / 123456</p>
-          <p>Admin: admin / admin123</p>
-        </div>
       </div>
     </div>
   );
