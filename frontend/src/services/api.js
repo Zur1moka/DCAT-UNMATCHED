@@ -54,7 +54,7 @@ export const resetPassword = (token, newPassword) =>
 // ===== USER =====
 export const getProfile = () => api.get('/users/profile');
 export const getAllUsers = () => api.get('/users');
-export const updateUsername = (username) => api.put('/users/profile/username', { username }); // ← ĐÃ THÊM
+export const updateUsername = (username) => api.put('/users/profile/username', { username }); // ✅ ĐÃ THÊM
 
 // ===== MATCHES =====
 export const createMatch = (data) => api.post('/matches', data);
