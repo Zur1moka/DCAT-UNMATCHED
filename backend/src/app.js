@@ -9,11 +9,18 @@ const { Server } = require('socket.io');
 const app = express();
 const port = process.env.PORT || 5000;
 
+// ===== CORS =====
+app.use(cors({
+  origin: "*",  // Cho phép mọi domain (có thể thay bằng domain cụ thể sau)
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(helmet());
-app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 
+// Routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const matchRoutes = require('./routes/matches');
@@ -47,10 +54,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
+// ===== WebSocket CORS =====
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: "*",  // Hoặc domain cụ thể
     methods: ["GET", "POST"]
   }
 });
