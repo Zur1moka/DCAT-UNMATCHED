@@ -1,34 +1,29 @@
+// backend/src/config/database.js
 const { Pool } = require('pg');
 require('dotenv').config();
 
-let pool;
+let poolConfig;
 
-if (process.env.NODE_ENV === 'production') {
-  // Render PostgreSQL
-  if (!process.env.DATABASE_URL) {
-    console.error('❌ DATABASE_URL is not defined!');
-    process.exit(1);
-  }
-  pool = new Pool({
+if (process.env.DATABASE_URL) {
+  // Trên production (Render) - dùng DATABASE_URL
+  poolConfig = {
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-  });
+    ssl: { rejectUnauthorized: false }
+  };
+  console.log('🔗 Connecting with DATABASE_URL');
 } else {
-  // Local development
-  pool = new Pool({
+  // Trên local - dùng các biến riêng lẻ
+  poolConfig = {
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
     database: process.env.DB_NAME || 'unmatched_db',
     password: process.env.DB_PASSWORD || '',
     port: process.env.DB_PORT || 5432,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-  });
+  };
+  console.log('🔗 Connecting with local config');
 }
+
+const pool = new Pool(poolConfig);
 
 pool.on('connect', () => {
   console.log('✅ Connected to PostgreSQL');
