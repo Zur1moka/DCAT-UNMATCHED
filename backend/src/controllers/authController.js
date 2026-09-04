@@ -9,6 +9,7 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// ===== ĐĂNG KÝ =====
 exports.register = async (req, res) => {
   try {
     const { username, password, email, role = 'user' } = req.body;
@@ -32,11 +33,12 @@ exports.register = async (req, res) => {
       passwordHash: hashed,
       email,
       role,
-      is_verified: 0,
+      is_verified: false, // dùng boolean thay vì 0
     });
 
     const otp = generateOTP();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 phút, dạng số
+    // Chuyển expiresAt thành chuỗi ISO để PostgreSQL hiểu
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     await pool.query(
       `INSERT INTO email_verifications (user_id, email, otp, expires_at) VALUES ($1, $2, $3, $4)`,
@@ -62,6 +64,7 @@ exports.register = async (req, res) => {
   }
 };
 
+// ===== XÁC THỰC OTP =====
 exports.verifyOTP = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -79,8 +82,8 @@ exports.verifyOTP = async (req, res) => {
       return res.status(400).json({ error: 'Mã OTP không hợp lệ' });
     }
 
-    // expires_at là số milliseconds, so sánh trực tiếp
-    if (record.expires_at < Date.now()) {
+    // expires_at là chuỗi ISO, so sánh với thời gian hiện tại
+    if (new Date(record.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Mã OTP đã hết hạn' });
     }
 
@@ -94,6 +97,7 @@ exports.verifyOTP = async (req, res) => {
   }
 };
 
+// ===== ĐĂNG NHẬP =====
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -102,6 +106,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Sai tên đăng nhập hoặc mật khẩu' });
     }
 
+    // Kiểm tra is_verified (boolean)
     if (user.is_verified === false) {
       return res.status(403).json({
         error: 'Tài khoản chưa được xác thực. Vui lòng kiểm tra email.',
@@ -137,6 +142,7 @@ exports.login = async (req, res) => {
   }
 };
 
+// ===== GỬI LẠI OTP =====
 exports.resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
@@ -148,7 +154,7 @@ exports.resendOTP = async (req, res) => {
     if (user.is_verified) return res.status(400).json({ error: 'Tài khoản đã được xác thực' });
 
     const otp = generateOTP();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     await pool.query(
       `INSERT INTO email_verifications (user_id, email, otp, expires_at) VALUES ($1, $2, $3, $4)`,
@@ -163,6 +169,7 @@ exports.resendOTP = async (req, res) => {
   }
 };
 
+// ===== QUÊN MẬT KHẨU =====
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -177,8 +184,9 @@ exports.forgotPassword = async (req, res) => {
     }
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 phút
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
+    // Đảm bảo bảng password_resets đã được tạo
     await pool.query(
       `INSERT INTO password_resets (user_id, email, token, expires_at) VALUES ($1, $2, $3, $4)`,
       [user.id, email, token, expiresAt]
@@ -203,6 +211,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+// ===== XÁC THỰC TOKEN RESET =====
 exports.verifyResetToken = async (req, res) => {
   try {
     const { token } = req.query;
@@ -220,7 +229,7 @@ exports.verifyResetToken = async (req, res) => {
       return res.status(400).json({ error: 'Token không hợp lệ hoặc đã được sử dụng' });
     }
 
-    if (record.expires_at < Date.now()) {
+    if (new Date(record.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Token đã hết hạn' });
     }
 
@@ -235,6 +244,7 @@ exports.verifyResetToken = async (req, res) => {
   }
 };
 
+// ===== ĐẶT LẠI MẬT KHẨU =====
 exports.resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
@@ -255,7 +265,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ error: 'Token không hợp lệ hoặc đã được sử dụng' });
     }
 
-    if (record.expires_at < Date.now()) {
+    if (new Date(record.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Token đã hết hạn' });
     }
 
