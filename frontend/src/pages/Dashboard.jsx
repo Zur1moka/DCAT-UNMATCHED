@@ -1,4 +1,3 @@
-// frontend/src/pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { getProfile, getMatchHistory, getUserQuests, checkIn, updateUsername } from '../services/api';
 import { useToast } from '../components/ui/ToastContext';
@@ -98,7 +97,6 @@ const Dashboard = () => {
               <span className="bg-green-600/80 backdrop-blur px-3 py-0.5 rounded-full text-sm border border-green-400/30">
                 Winrate {winrate}%
               </span>
-              {/* Nút đổi tên */}
               <button
                 onClick={() => {
                   setNewUsername(user.username);
@@ -123,7 +121,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Thanh XP */}
         <div className="mt-6">
           {!isMaxLevel ? (
             <ProgressBar 
@@ -141,7 +138,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Nhiệm vụ */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
           {quests.map(quest => (
             <div
@@ -162,7 +158,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Lịch sử gần đây */}
       <div className="bg-card-dark/80 backdrop-blur-sm border border-gray-700 rounded-2xl p-6">
         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">🕒 Hoạt động gần đây</h2>
         <div className="overflow-x-auto">
@@ -204,7 +199,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Modal đổi tên */}
       {showRenameModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-card-dark border border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl">
