@@ -54,6 +54,7 @@ export const resetPassword = (token, newPassword) =>
 // ===== USER =====
 export const getProfile = () => api.get('/users/profile');
 export const getAllUsers = () => api.get('/users');
+export const updateUsername = (username) => api.put('/users/profile/username', { username }); // ← ĐÃ THÊM
 
 // ===== MATCHES =====
 export const createMatch = (data) => api.post('/matches', data);
@@ -90,15 +91,10 @@ export const getOverviewStats = () => api.get('/stats/overview');
 export const getDailyStats = (days = 7) => api.get('/stats/daily', { params: { days } });
 export const getLevelDistribution = () => api.get('/stats/levels');
 
-// ===== EXPORT CSV =====
+// ===== EXPORT =====
 export const exportUsers = () => api.get('/export/users', { responseType: 'blob' });
 export const exportMatches = () => api.get('/export/matches', { responseType: 'blob' });
 export const exportRanking = () => api.get('/export/ranking', { responseType: 'blob' });
-
-// ===== EXPORT EXCEL =====
-export const exportUsersExcel = () => api.get('/export/excel/users', { responseType: 'blob' });
-export const exportMatchesExcel = () => api.get('/export/excel/matches', { responseType: 'blob' });
-export const exportRankingExcel = () => api.get('/export/excel/ranking', { responseType: 'blob' });
 
 // ===== ADMIN USER MANAGEMENT =====
 export const adminGetAllUsers = () => api.get('/admin/users');
